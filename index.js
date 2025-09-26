@@ -4,21 +4,22 @@ const app = express();
 
 app.use(bodyParser.json());
 
-// Webhook verification
+// Webhook verification - CORRECTED VERSION
 app.get('/webhook', (req, res) => {
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "gyan_ai_webhook_2024";
   
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  if (mode && token) {
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('WEBHOOK_VERIFIED');
-      res.status(200).send(challenge);
-    } else {
-      res.sendStatus(403);
-    }
+  console.log('Verification request:', { mode, token, challenge });
+  
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('WEBHOOK_VERIFIED');
+    res.status(200).send(challenge);
+  } else {
+    console.log('Verification failed');
+    res.status(403).send('Forbidden');
   }
 });
 
@@ -28,18 +29,21 @@ app.post('/webhook', (req, res) => {
   
   console.log('Received webhook:', JSON.stringify(body, null, 2));
   
-  if (body.object) {
-    if (body.entry && 
-        body.entry[0].changes && 
-        body.entry[0].changes[0].value.messages &&
-        body.entry[0].changes[0].value.messages[0]) {
-      
-      const message = body.entry[0].changes[0].value.messages[0];
-      console.log('Received message:', message.text.body);
-    }
+  if (body.object === 'whatsapp_business_account') {
+    body.entry.forEach(entry => {
+      const changes = entry.changes;
+      changes.forEach(change => {
+        if (change.value.messages) {
+          const messages = change.value.messages;
+          messages.forEach(message => {
+            console.log('Received message:', message.text?.body);
+          });
+        }
+      });
+    });
     res.status(200).send('EVENT_RECEIVED');
   } else {
-    res.sendStatus(404);
+    res.status(404).send('Not Found');
   }
 });
 
